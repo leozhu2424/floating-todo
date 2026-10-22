@@ -4,14 +4,9 @@
 > 学习通的作业、考试、分组任务、随堂练习自动同步进来，交完自动打勾。
 
 <p align="center">
-  <img src="docs/screenshots/ball-aurora.png" width="96" alt="极光">
-  <img src="docs/screenshots/ball-ocean.png" width="96" alt="深海">
-  <img src="docs/screenshots/ball-sunset.png" width="96" alt="落日">
-  <img src="docs/screenshots/ball-forest.png" width="96" alt="森野">
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/settings.png" width="380" alt="设置：球的配色与靠边吸附">
+  <img src="docs/screenshots/panel.png" width="300" alt="待办面板">
+  &nbsp;&nbsp;&nbsp;
+  <img src="docs/screenshots/settings.png" width="300" alt="设置">
 </p>
 
 - Windows 10 / 11（64 位）· 免安装绿色版 · 数据全在本机
@@ -60,9 +55,13 @@
 | 双击条目标题 | 就地改标题，`Enter` 保存、`Esc` 取消 |
 | 悬停条目 | 「设时间 / 优先级 / 删除」 |
 
-- **六套配色**：极光（默认，蓝紫橙绿）、落日、深海、樱花、森野、墨银。面板主色会跟着球一起变。
+- **六套配色**：点一下立刻换，面板主色会跟着球一起变。
 - **提醒**：到点弹系统通知 + 球跳三下 + 提示音；系统通知被 Windows 拦截时，后两者仍然生效。
 - **三档大小**：小 / 中 / 大，换尺寸时球心位置不变。
+
+| 极光（默认） | 落日 | 深海 | 樱花 | 森野 | 墨银 |
+|:---:|:---:|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/ball-aurora.png" width="72" alt="极光"> | <img src="docs/screenshots/ball-sunset.png" width="72" alt="落日"> | <img src="docs/screenshots/ball-ocean.png" width="72" alt="深海"> | <img src="docs/screenshots/ball-sakura.png" width="72" alt="樱花"> | <img src="docs/screenshots/ball-forest.png" width="72" alt="森野"> | <img src="docs/screenshots/ball-mono.png" width="72" alt="墨银"> |
 
 ### 输入框支持自然语言
 
