@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>作业列表（模拟学习通结构）</title>
+<style>
+  body { font: 14px "Microsoft YaHei UI", sans-serif; margin: 0; padding: 20px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 16px 8px; border-bottom: 1px solid #eee; }
+  .badge { width: 44px; height: 44px; background: #3aa6f0; color: #fff; border-radius: 6px; display: grid; place-items: center; font-size: 13px; }
+  .title { font-size: 17px; }
+  .status { font-size: 13px; }
+  .red { color: #f56c6c; }
+  .grey { color: #909399; }
+  .course { color: #909399; font-size: 13px; }
+  .remain { margin-left: auto; color: #606266; font-size: 13px; }
+</style>
+</head>
+<body>
+<h2>作业</h2>
+
+<div class="row">
+  <div class="badge">作业</div>
+  <div class="title">2.7-2.8 MOOC练习</div>
+  <div class="status red">未提交</div>
+  <div class="course">《电工学（26…》</div>
+  <div class="remain">剩余177小时5分钟</div>
+</div>
+
+<div class="row">
+  <div class="badge">作业</div>
+  <div class="title">数字示波器</div>
+  <div class="status red">未提交</div>
+  <div class="course">《大学物理实验…》</div>
+  <div class="remain">剩余69小时6分钟</div>
+</div>
+
+<div class="row">
+  <div class="badge">作业</div>
+  <div class="title">扭摆</div>
+  <div class="status red">未提交</div>
+  <div class="course">《大学物理实验…》</div>
+  <div class="remain">剩余69小时6分钟</div>
+</div>
+
+<!-- 这一条必须是「已完成」，采集器要能跳过它 -->
+<div class="row">
+  <div class="badge">作业</div>
+  <div class="title">第1章 章节测试</div>
+  <div class="status grey">已完成</div>
+  <div class="course">《电工学（26…》</div>
+  <div class="remain">剩余5小时3分钟</div>
+</div>
+
+<!-- 这一条是「待批阅」，也要跳过 -->
+<div class="row">
+  <div class="badge">作业</div>
+  <div class="title">2.1-2.3 MOOC练习</div>
+  <div class="status grey">待批阅</div>
+  <div class="course">《电工学（26…》</div>
+  <div class="remain">剩余5小时3分钟</div>
+</div>
+
+<!-- 这一条是「待批阅」，也要跳过 -->
+<div class="row">
+  <div class="badge">作业</div>
+  <div class="title">2.1-2.3 MOOC练习</div>
+  <div class="status grey">待批阅</div>
+  <div class="course">《电工学（26…》</div>
+  <div class="remain">剩余5小时3分钟</div>
+</div>
+
+<!-- 这一条「已完成」但**没有倒计时**，用来验证状态兜底也能抓到（用于自动打勾） -->
+<div class="row">
+  <div class="badge">作业</div>
+  <div class="title">第2章 章节测试</div>
+  <div class="status grey">已完成</div>
+  <div class="course">《电工学（26…》</div>
+</div>
+
+<!-- 下面三条分别是考试、分组任务、随堂练习，用来验证「不区分类型」和「绝对日期」 -->
+<div class="row">
+  <div class="badge">考试</div>
+  <div class="title">期中考试</div>
+  <div class="status red">未开始</div>
+  <div class="course">《高等数学》</div>
+  <div class="remain">2026-11-05 14:00</div>
+</div>
+
+<div class="row">
+  <div class="badge">分组任务</div>
+  <div class="title">小组调研报告</div>
+  <div class="status red">未提交</div>
+  <div class="course">《市场营销》</div>
+  <div class="remain">2026-10-28 23:59</div>
+</div>
+
+<div class="row">
+  <div class="badge">随堂练习</div>
+  <div class="title">第3节 随堂测验</div>
+  <div class="status red">未提交</div>
+  <div class="course">《线性代数》</div>
+  <div class="remain">剩余12小时30分钟</div>
+</div>
+
+</body>
+</html>

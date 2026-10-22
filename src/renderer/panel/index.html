@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' file:; style-src 'self' 'unsafe-inline' file:; script-src 'self' file:; img-src 'self' data: file:"
+    />
+    <title>待办</title>
+    <link rel="stylesheet" href="panel.css" />
+  </head>
+  <body>
+    <main class="card" id="card">
+      <div class="card__topbar"></div>
+
+      <header class="head">
+        <div class="head__info">
+          <div class="head__date" id="dateLabel">载入中…</div>
+          <div class="head__sub" id="progressText">今天 0/0</div>
+        </div>
+        <svg class="ring" viewBox="0 0 36 36" aria-hidden="true">
+          <circle class="ring__bg" cx="18" cy="18" r="15"></circle>
+          <circle class="ring__fg" id="ringFg" cx="18" cy="18" r="15"></circle>
+        </svg>
+        <button class="icon-btn head__close" id="closeBtn" title="收起 (Esc)" aria-label="收起">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </header>
+
+      <div class="composer" id="composer">
+        <input
+          id="input"
+          class="composer__input"
+          type="text"
+          placeholder="添加待办…"
+          autocomplete="off"
+          spellcheck="false"
+          maxlength="200"
+        />
+        <div class="composer__chips" id="composerChips"></div>
+        <button class="icon-btn composer__btn" id="timeBtn" title="设置时间" aria-label="设置时间">
+          <svg viewBox="0 0 24 24" width="16" height="16">
+            <circle cx="12" cy="12" r="8.5" />
+            <path d="M12 7.5V12l3 2" />
+          </svg>
+        </button>
+        <button class="icon-btn composer__btn prio0" id="prioBtn" title="优先级" aria-label="优先级">
+          <svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 3v18M6 4h10l-1.8 3L16 10H6" /></svg>
+        </button>
+      </div>
+
+      <div class="hint" id="hint"></div>
+
+      <section class="list" id="list"></section>
+
+      <footer class="foot">
+        <div class="tabs" id="tabs">
+          <button class="tab is-active" data-filter="open">进行中</button>
+          <button class="tab" data-filter="done">已完成</button>
+          <button class="tab" data-filter="all">全部</button>
+        </div>
+        <div class="foot__right">
+          <button class="link-btn" id="clearDoneBtn" hidden>清空</button>
+          <button class="icon-btn" id="settingsBtn" title="设置" aria-label="设置">
+            <svg viewBox="0 0 24 24" width="16" height="16">
+              <circle cx="12" cy="12" r="3.2" />
+              <path
+                d="M12 3.5v2M12 18.5v2M3.5 12h2M18.5 12h2M6 6l1.4 1.4M16.6 16.6L18 18M18 6l-1.4 1.4M7.4 16.6L6 18"
+              />
+            </svg>
+          </button>
+        </div>
+      </footer>
+
+      <div class="pop" id="timePop" hidden>
+        <div class="pop__quicks" id="timeQuicks">
+          <button data-set="today18">今天 18:00</button>
+          <button data-set="tomorrow9">明天 9:00</button>
+          <button data-set="tomorrow18">明天 18:00</button>
+          <button data-set="nextMon9">下周一 9:00</button>
+        </div>
+        <div class="pop__datetime">
+          <input class="pop__input pop__input--date" type="date" id="dateInput" aria-label="日期" />
+          <input class="pop__input pop__input--time" type="time" id="timeInput" aria-label="时间" />
+        </div>
+        <label class="pop__check"><input type="checkbox" id="allDayChk" /> 全天（只定日期，不提醒具体时刻）</label>
+        <div class="pop__foot">
+          <button class="btn btn--ghost" id="clearTimeBtn">清除时间</button>
+          <button class="btn btn--primary" id="applyTimeBtn">确定</button>
+        </div>
+      </div>
+
+      <div class="sheet" id="sheet" hidden>
+        <div class="sheet__head">
+          <span>设置</span>
+          <button class="icon-btn" id="sheetClose" aria-label="关闭">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+
+        <div class="sheet__body">
+          <div class="field">
+            <label class="field__label">悬浮球大小</label>
+            <div class="seg" id="sizeSeg">
+              <button data-size="36">小</button>
+              <button data-size="44">中</button>
+              <button data-size="56">大</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field__label">球的配色</label>
+            <div class="swatches" id="ballThemeSeg">
+              <button data-ball-theme="aurora" title="极光（默认）"><i></i><span>极光</span></button>
+              <button data-ball-theme="sunset" title="落日"><i></i><span>落日</span></button>
+              <button data-ball-theme="ocean" title="深海"><i></i><span>深海</span></button>
+              <button data-ball-theme="sakura" title="樱花"><i></i><span>樱花</span></button>
+              <button data-ball-theme="forest" title="森野"><i></i><span>森野</span></button>
+              <button data-ball-theme="mono" title="墨银"><i></i><span>墨银</span></button>
+            </div>
+          </div>
+
+          <div class="field field--row">
+            <label class="field__label" for="snapChk">靠边自动吸附</label>
+            <input type="checkbox" id="snapChk" class="switch" />
+          </div>
+
+          <div class="field field--row">
+            <label class="field__label" for="animChk">流动动画</label>
+            <input type="checkbox" id="animChk" class="switch" />
+          </div>
+
+          <div class="field field--row">
+            <label class="field__label" for="soundChk">提醒提示音</label>
+            <input type="checkbox" id="soundChk" class="switch" />
+          </div>
+
+          <div class="field field--row">
+            <label class="field__label" for="autostartChk">开机自启</label>
+            <input type="checkbox" id="autostartChk" class="switch" />
+          </div>
+
+          <div class="field">
+            <label class="field__label">全局快捷键</label>
+            <div class="hotkey">
+              <button class="hotkey__btn" id="hotkeyBtn"><span id="hotkeyText">Control+Shift+T</span></button>
+              <span class="field__hint" id="hotkeyHint">点一下，再按你要用的组合键即可更换</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field__label">主题</label>
+            <div class="seg" id="themeSeg">
+              <button data-theme="system">跟随系统</button>
+              <button data-theme="light">浅色</button>
+              <button data-theme="dark">深色</button>
+            </div>
+          </div>
+
+          <div class="field field--muted">
+            <div class="field__label">学习通（自动同步）</div>
+            <div class="sync">
+              <div class="sync__row">
+                <span class="sync__text">启动时自动同步作业</span>
+                <input type="checkbox" id="cxChk" class="switch" />
+              </div>
+              <div class="field__hint" id="cxInfo">—</div>
+              <div class="sheet__row">
+                <button class="btn btn--primary" id="cxLoginBtn">登录学习通</button>
+                <button class="btn btn--ghost" id="cxSyncBtn">立即同步</button>
+              </div>
+              <div class="sheet__row">
+                <button class="btn btn--ghost" id="cxSchoolLoginBtn">登录学校入口</button>
+              </div>
+              <input
+                class="text-input"
+                id="cxSchoolUrl"
+                type="text"
+                spellcheck="false"
+                placeholder="学校学习通地址（留空则自动识别）"
+              />
+              <div class="field__hint" id="cxSchoolHint">—</div>
+              <div class="field__hint">
+                学习通有<b>两套独立登录</b>：通用域名和学习通账号，学校实例和校园统一认证。
+                两个都要登，各自记住状态。<br />
+                通用入口建议选<b>「账号密码登录」</b>并勾<b>「7天内自动登录」</b>。
+                密码不会被保存，程序只保留登录状态并自动续期。
+              </div>
+              <input
+                class="text-input"
+                id="cxLoginUrl"
+                type="text"
+                spellcheck="false"
+                placeholder="登录起始地址（留空则默认打开作业页）"
+              />
+              <div class="field__hint">
+                额外要抓的页面（考试 / 分组任务 / 随堂练习），一行一个网址。留空则只抓作业。
+              </div>
+              <textarea
+                class="text-input"
+                id="cxExtraUrls"
+                rows="3"
+                spellcheck="false"
+                placeholder="https://...（一行一个）"
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="field field--muted">
+            <div class="field__label">备用：浏览器脚本接入</div>
+            <div class="sync">
+              <div class="sync__row">
+                <span class="sync__text">接收油猴/书签脚本推送</span>
+                <input type="checkbox" id="ingestChk" class="switch" />
+              </div>
+              <div class="field__hint" id="ingestInfo">—</div>
+              <div class="sheet__row">
+                <button class="btn btn--ghost" id="ingestCopyBtn">复制接入配置</button>
+                <button class="btn btn--ghost" id="cxLogoutBtn">退出学习通登录</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="field field--muted">
+            <div class="field__label">数据</div>
+            <div class="field__hint" id="dataDirHint">—</div>
+            <div class="sheet__row">
+              <button class="btn btn--ghost" id="openDirBtn">打开目录</button>
+              <button class="btn btn--ghost" id="exportBtn">导出 JSON</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="toast" id="toast" hidden>
+        <span id="toastText"></span>
+        <button id="toastAction" hidden></button>
+      </div>
+
+      <div class="welcome" id="welcome" hidden>
+        <div class="welcome__ball"></div>
+        <h2 class="welcome__title">悬浮待办</h2>
+        <p class="welcome__sub">一颗球，装下所有待办</p>
+
+        <ul class="welcome__list">
+          <li><b>单击球</b>：展开 / 收起面板，<b>按住拖动</b>换位置</li>
+          <li><b>Ctrl + Shift + T</b>：在任何程序里唤起</li>
+          <li>输入框里写「<b>明天10点交报告</b>」，时间自动识别</li>
+          <li>点左边的圆圈完成，悬停可设时间 / 优先级</li>
+        </ul>
+
+        <div class="welcome__actions">
+          <button class="btn btn--primary" id="welcomeStart">开始使用</button>
+          <button class="btn btn--ghost" id="welcomeLogin">登录学习通（可选）</button>
+        </div>
+        <p class="welcome__tip">数据只存在你自己电脑上，不联网、不上传。</p>
+      </div>
+    </main>
+
+    <script src="../../shared/parser.js"></script>
+    <script src="panel.js"></script>
+  </body>
+</html>

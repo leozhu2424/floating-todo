@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "settings": {
+    "ballSize": 44,
+    "ballOpacity": 0.95,
+    "edgeHide": false,
+    "animation": true,
+    "sound": true,
+    "hotkey": "Control+Shift+T",
+    "autoLaunch": false,
+    "theme": "system",
+    "panelWidth": 320,
+    "panelHeight": 420
+  },
+  "ball": { "x": 1188, "y": 300, "displayId": null },
+  "todos": [
+    {
+      "id": "seed-01",
+      "title": "交电费",
+      "done": false,
+      "createdAt": "2026-10-17T02:00:00.000Z",
+      "updatedAt": "2026-10-17T02:00:00.000Z",
+      "dueAt": "2026-10-17T12:00:00.000Z",
+      "allDay": false,
+      "priority": 2,
+      "repeat": null
+    },
+    {
+      "id": "seed-02",
+      "title": "回复导师邮件",
+      "note": "",
+      "done": false,
+      "createdAt": "2026-10-18T01:00:00.000Z",
+      "updatedAt": "2026-10-18T01:00:00.000Z",
+      "dueAt": "2026-10-18T06:00:00.000Z",
+      "allDay": false,
+      "priority": 3,
+      "repeat": null
+    },
+    {
+      "id": "seed-03",
+      "title": "买牛奶",
+      "done": false,
+      "createdAt": "2026-10-18T01:10:00.000Z",
+      "updatedAt": "2026-10-18T01:10:00.000Z",
+      "dueAt": "2026-10-18T15:59:00.000Z",
+      "allDay": true,
+      "priority": 0,
+      "repeat": null
+    },
+    {
+      "id": "seed-04",
+      "title": "改简历稿",
+      "done": true,
+      "completedAt": "2026-10-18T03:20:00.000Z",
+      "createdAt": "2026-10-18T00:20:00.000Z",
+      "updatedAt": "2026-10-18T03:20:00.000Z",
+      "dueAt": "2026-10-18T03:20:00.000Z",
+      "allDay": false,
+      "priority": 1,
+      "repeat": null
+    },
+    {
+      "id": "seed-05",
+      "title": "周五交实验报告",
+      "done": false,
+      "createdAt": "2026-10-18T00:30:00.000Z",
+      "updatedAt": "2026-10-18T00:30:00.000Z",
+      "dueAt": "2026-10-23T01:00:00.000Z",
+      "allDay": false,
+      "priority": 2,
+      "repeat": null
+    },
+    {
+      "id": "seed-06",
+      "title": "看《XXX》文档",
+      "done": false,
+      "createdAt": "2026-10-18T00:40:00.000Z",
+      "updatedAt": "2026-10-18T00:40:00.000Z",
+      "dueAt": null,
+      "priority": 0,
+      "repeat": null
+    },
+    {
+      "id": "seed-07",
+      "title": "吃维生素",
+      "done": false,
+      "createdAt": "2026-10-18T00:50:00.000Z",
+      "updatedAt": "2026-10-18T00:50:00.000Z",
+      "dueAt": "2026-10-19T00:00:00.000Z",
+      "allDay": false,
+      "priority": 0,
+      "repeat": { "unit": "day", "interval": 1 }
+    }
+  ]
+}

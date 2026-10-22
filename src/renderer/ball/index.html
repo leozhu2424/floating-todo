@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; style-src 'self' 'unsafe-inline' file:; script-src 'self' file:; img-src 'self' data: file:; media-src 'self' file: data:" />
+    <title>FloatingTodo Ball</title>
+    <link rel="stylesheet" href="ball.css" />
+  </head>
+  <body>
+    <div class="ball" id="ball">
+      <div class="ball__clip">
+        <div class="ball__spin"></div>
+        <div class="ball__sheen"></div>
+      </div>
+      <div class="ball__ring"></div>
+      <span class="ball__count" id="count"></span>
+    </div>
+    <script src="ball.js"></script>
+  </body>
+</html>

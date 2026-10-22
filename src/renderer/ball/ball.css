@@ -1,0 +1,283 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-app-region: no-drag;
+}
+
+body {
+  display: grid;
+  place-items: center;
+}
+
+.ball {
+  --size: 44px;
+  position: relative;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  transform: scale(1);
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* 窗口只在球体外留 6px，阴影不能太大，否则会被窗口边缘裁掉 */
+  box-shadow:
+    0 2px 6px rgba(var(--ball-shadow), 0.45),
+    0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.ball.hover {
+  transform: scale(1.06);
+  box-shadow:
+    0 3px 9px rgba(var(--ball-shadow), 0.6),
+    0 1px 3px rgba(0, 0, 0, 0.28);
+}
+
+.ball.dragging {
+  cursor: grabbing;
+  transform: scale(1.03);
+}
+
+/* 圆形裁切层 */
+.ball__clip {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.ball__clip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.24),
+    inset 0 -6px 10px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+
+/* 五彩渐变层：整体旋转由 GPU 合成，不用逐帧改样式 */
+.ball__spin {
+  position: absolute;
+  left: -50%;
+  top: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(
+    from 0deg,
+    var(--b1) 0deg,
+    var(--b2) 62deg,
+    var(--b3) 124deg,
+    var(--b4) 186deg,
+    var(--b5) 248deg,
+    var(--b1) 360deg
+  );
+  animation: ball-spin 12s linear infinite;
+  will-change: transform;
+}
+
+/* ---------------------------------------------------------------------------
+ * 外观配色
+ * 每套主题只换 5 个渐变色和投影色，球的结构、高光、数字都不变。
+ * ------------------------------------------------------------------------- */
+:root,
+[data-ball-theme='aurora'] {
+  --b1: #4285f4;
+  --b2: #9b72cb;
+  --b3: #d96570;
+  --b4: #f9ab00;
+  --b5: #34a853;
+  --ball-shadow: 66, 133, 244;
+  --ball-glow: 155, 114, 203;
+}
+
+[data-ball-theme='sunset'] {
+  --b1: #ff6a3d;
+  --b2: #ff3d7f;
+  --b3: #b5327e;
+  --b4: #ffb03a;
+  --b5: #ff7a59;
+  --ball-shadow: 255, 106, 61;
+  --ball-glow: 255, 61, 127;
+}
+
+[data-ball-theme='ocean'] {
+  --b1: #12b5cb;
+  --b2: #2f6df6;
+  --b3: #6a4ce0;
+  --b4: #16c2a3;
+  --b5: #35a8e0;
+  --ball-shadow: 47, 109, 246;
+  --ball-glow: 18, 181, 203;
+}
+
+[data-ball-theme='sakura'] {
+  --b1: #ff7a9c;
+  --b2: #ffb25e;
+  --b3: #cf6fd8;
+  --b4: #ff6d8f;
+  --b5: #a06be8;
+  --ball-shadow: 255, 122, 156;
+  --ball-glow: 207, 111, 216;
+}
+
+[data-ball-theme='forest'] {
+  --b1: #3ddc97;
+  --b2: #1fae7a;
+  --b3: #8fd14f;
+  --b4: #f2c14e;
+  --b5: #2e9e8f;
+  --ball-shadow: 31, 174, 122;
+  --ball-glow: 143, 209, 79;
+}
+
+[data-ball-theme='mono'] {
+  --b1: #d7dce5;
+  --b2: #9aa4b2;
+  --b3: #6f7887;
+  --b4: #c2c9d4;
+  --b5: #838c9c;
+  --ball-shadow: 120, 130, 145;
+  --ball-glow: 180, 188, 200;
+}
+
+@keyframes ball-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 高光与立体感 */
+.ball__sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0) 52%),
+    linear-gradient(146deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 48%, rgba(0, 0, 0, 0.2) 100%);
+  pointer-events: none;
+}
+
+/* 过期脉冲环 */
+.ball__ring {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 2px solid #ea4335;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.ball.overdue .ball__ring {
+  animation: ball-pulse 1.6s ease-out infinite;
+}
+
+@keyframes ball-pulse {
+  0% {
+    opacity: 0.6;
+    transform: scale(0.94);
+  }
+  70% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+
+/* 数字 */
+.ball__count {
+  position: relative;
+  z-index: 3;
+  font-family: 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+  font-size: calc(var(--size) * 0.34);
+  font-weight: 700;
+  line-height: 1;
+  color: #ffffff;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 0 1px rgba(0, 0, 0, 0.6);
+  letter-spacing: -0.02em;
+  pointer-events: none;
+}
+
+.ball__count:empty::before {
+  content: '';
+  display: block;
+  width: calc(var(--size) * 0.2);
+  height: calc(var(--size) * 0.1);
+  border-left: 2px solid rgba(255, 255, 255, 0.9);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.9);
+  transform: translateY(-30%) rotate(-45deg);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+}
+
+/* 悬停加速 */
+.ball.hover .ball__spin {
+  animation-duration: 3s;
+}
+
+/* 提醒：球明显地「跳」三下 */
+.ball.alert {
+  animation: ball-alert 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) 3;
+}
+
+@keyframes ball-alert {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.14);
+    box-shadow:
+      0 6px 26px rgba(var(--ball-glow), 0.78),
+      0 2px 6px rgba(0, 0, 0, 0.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+body.no-anim .ball.alert {
+  animation: none;
+}
+
+.ball.dragging .ball__spin {
+  animation-play-state: paused;
+}
+
+/* 关闭动画 */
+body.no-anim .ball__spin {
+  animation: none;
+}
+
+body.no-anim .ball.hover {
+  transform: scale(1.04);
+}
+
+body.no-anim .ball.overdue .ball__ring {
+  animation: none;
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ball__spin {
+    animation: none;
+  }
+}

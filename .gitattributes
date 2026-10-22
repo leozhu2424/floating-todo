@@ -1,0 +1,13 @@
+# 统一换行，避免 Windows / macOS 之间整文件 diff
+* text=auto eol=lf
+
+# Windows 脚本保留 CRLF，否则个别老版本 cmd / PowerShell 会闹脾气
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# 二进制，别做文本转换
+*.png binary
+*.ico binary
+*.wav binary
+*.jpg binary
