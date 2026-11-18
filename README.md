@@ -145,16 +145,15 @@ npm start
 
 ```powershell
 npm start              # 启动
-npm test               # 离线用例（本机接入接口 + 油猴脚本逻辑）
+npm test               # 离线用例
 npm run test:parser    # 自然语言解析用例
 npm run test:collector # 采集器用例（需要 Electron 窗口，会真开浏览器内核）
 npm run pack           # 打包成 dist/FloatingTodo/FloatingTodo.exe
 npm run icons          # 重新生成 PNG 图标
 npm run sound          # 重新生成提示音
-npm run make:bookmarklet  # 用本机令牌生成「接入书签」HTML
 ```
 
-合计 70 余条离线用例，覆盖时间解析、采集规则、接入接口鉴权。
+离线用例覆盖时间解析和采集规则。
 
 ### 目录结构
 
@@ -164,18 +163,16 @@ floating-todo/
 │  ├─ main/                主进程
 │  │  ├─ main.js           窗口 / 托盘 / IPC / 快捷键 / 学习通同步 / 靠边吸附
 │  │  ├─ store.js          JSON 存储、备份、迁移、设置校验
-│  │  ├─ reminder.js       提醒调度（20s 一轮）
-│  │  └─ ingest.js         本机接入接口（127.0.0.1 + 令牌）
+│  │  └─ reminder.js       提醒调度（20s 一轮）
 │  ├─ preload/
 │  │  ├─ preload.js        contextBridge 白名单
 │  │  └─ backdrop.js       面板外部点击「挡板」
 │  ├─ shared/
 │  │  ├─ parser.js         自然语言 → { 标题, 时间, 重复, 优先级 }
-│  │  └─ chaoxing-collector.js  学习通页面采集规则（主进程 + 油猴脚本共用）
+│  │  └─ chaoxing-collector.js  学习通页面采集规则
 │  └─ renderer/
 │     ├─ ball/             悬浮球（配色主题在 ball.css 的 data-ball-theme）
 │     └─ panel/            待办面板 + 设置抽屉
-├─ userscript/             油猴脚本（备用通道）
 ├─ scripts/                生成脚本、测试、UI 自动化验证工具
 ├─ docs/screenshots/       README 用的截图
 ├─ 需求文档.md              需求与设计规格

@@ -10,12 +10,9 @@
     "dev": "electron . --dev",
     "icons": "powershell -NoProfile -ExecutionPolicy Bypass -File assets/make-icons.ps1 && node scripts/make-ico.js",
     "sound": "node scripts/make-sound.js",
-    "test": "node scripts/test-ingest.js && node scripts/test-userscript-logic.js",
+    "test": "node scripts/test-parser.js",
     "test:parser": "node scripts/test-parser.js",
-    "test:ingest": "node scripts/test-ingest.js",
-    "test:userscript": "node scripts/test-userscript-logic.js",
     "test:collector": "electron scripts/test-collector.js",
-    "make:bookmarklet": "node scripts/make-bookmarklet.js",
     "pack": "node scripts/pack.js"
   },
   "author": "Leo Zhu",

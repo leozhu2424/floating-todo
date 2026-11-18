@@ -43,11 +43,14 @@ const dom = {
   hotkeyHint: document.getElementById('hotkeyHint'),
   autostartChk: document.getElementById('autostartChk'),
   clearDoneBtn: document.getElementById('clearDoneBtn'),
-  ingestChk: document.getElementById('ingestChk'),
-  ingestInfo: document.getElementById('ingestInfo'),
-  ingestCopyBtn: document.getElementById('ingestCopyBtn'),
   cxChk: document.getElementById('cxChk'),
   cxInfo: document.getElementById('cxInfo'),
+  cxGenericStatus: document.getElementById('cxGenericStatus'),
+  cxGenericMeta: document.getElementById('cxGenericMeta'),
+  cxGenericExpiry: document.getElementById('cxGenericExpiry'),
+  cxSchoolStatus: document.getElementById('cxSchoolStatus'),
+  cxSchoolMeta: document.getElementById('cxSchoolMeta'),
+  cxSchoolExpiry: document.getElementById('cxSchoolExpiry'),
   cxLoginBtn: document.getElementById('cxLoginBtn'),
   cxSchoolLoginBtn: document.getElementById('cxSchoolLoginBtn'),
   cxSyncBtn: document.getElementById('cxSyncBtn'),
@@ -363,6 +366,63 @@ function applyTheme() {
   else delete document.documentElement.dataset.ballTheme;
 }
 
+function loginStatusLabel(login) {
+  if (login && login.status === 'disabled') return '已关闭';
+  if (!login || login.status === 'unknown') return '待检查';
+  if (login.status === 'checking' || login.status === 'waiting') return '检查中';
+  if (login.status === 'logged-in') return '已登录';
+  if (login.status === 'partial') return '部分失效';
+  if (login.status === 'need-login') return '未登录';
+  if (login.status === 'error') return '检查失败';
+  if (login.status === 'not-configured') return '未配置';
+  return '待检查';
+}
+
+function loginExpiryText(login) {
+  if (login && login.status === 'disabled') return '会话有效期：未启用';
+  if (!login || !login.expiresAt) return '会话有效期：未知';
+  const expiresAt = Date.parse(login.expiresAt);
+  if (!Number.isFinite(expiresAt)) return '会话有效期：未知';
+  const left = expiresAt - Date.now();
+  if (left <= 0) return '会话有效期：已过期';
+
+  const days = Math.ceil(left / 86400000);
+  const d = new Date(expiresAt);
+  const date = `${d.getMonth() + 1}月${d.getDate()}日`;
+  return `会话有效期：约 ${days} 天（预计 ${date}）`;
+}
+
+function loginMetaText(target, login) {
+  if (login && login.status === 'disabled') return '已关闭自动同步';
+  if (!login || login.status === 'unknown') return '还没有完成登录检查';
+  if (login.status === 'checking') return '正在检查当前会话…';
+  if (login.status === 'waiting') return '登录窗口已打开，完成认证后会自动更新';
+  if (login.status === 'not-configured') return '还没有配置学校学习通地址';
+  if (login.status === 'logged-in' || login.status === 'partial') {
+    if (login.status === 'partial') return login.message || '部分页面需要重新登录';
+    return target === 'school' ? '校园统一认证会话正常' : '学习通账号会话正常';
+  }
+  if (login.status === 'need-login') return login.message || '需要重新登录';
+  if (login.status === 'error') return login.message || '暂时无法确认登录状态';
+  return '还没有完成登录检查';
+}
+
+function renderLoginCard(target, login) {
+  const prefix = target === 'school' ? 'cxSchool' : 'cxGeneric';
+  const status = document.getElementById(`${prefix}Status`);
+  const meta = document.getElementById(`${prefix}Meta`);
+  const expiry = document.getElementById(`${prefix}Expiry`);
+  const card = document.querySelector(`[data-login-card="${target}"]`);
+  if (!status || !meta || !expiry || !card) return;
+
+  const stateName = login && login.status ? login.status : 'unknown';
+  status.textContent = loginStatusLabel(login);
+  status.dataset.state = stateName;
+  meta.textContent = loginMetaText(target, login);
+  expiry.textContent = loginExpiryText(login);
+  card.dataset.state = stateName;
+}
+
 function renderSettings() {
   const s = state.settings;
 
@@ -396,14 +456,13 @@ function renderSettings() {
     dom.cxExtraUrls.value = (Array.isArray(s.cxExtraUrls) ? s.cxExtraUrls : []).join('\n');
   }
 
-  // 学校入口：填了就用填的，没填就显示自动识别到什么（识别不到就提示去填）
-  const schoolUrl = cx.schoolUrl || '';
   dom.cxSchoolUrl.placeholder = cx.schoolSuggested
     ? `自动识别：${cx.schoolSuggested}`
     : '学校学习通地址（留空则自动识别）';
-  const schoolKnown = !!(s.cxSchoolUrl || cx.schoolSuggested);
-  dom.cxSchoolLoginBtn.disabled = !schoolKnown;
-  dom.cxSchoolLoginBtn.title = schoolKnown ? '' : '需要先填你学校的地址';
+  // 地址未知时也要允许点击，让主进程返回提示并把输入框聚焦。
+  // 之前直接 disabled 会让按钮看起来像“点了没反应”，用户也无法知道下一步该填什么。
+  dom.cxSchoolLoginBtn.disabled = false;
+  dom.cxSchoolLoginBtn.title = '';
   if (s.cxSchoolUrl) {
     dom.cxSchoolHint.textContent = '已填学校地址。不需要学校入口就清空它，不影响通用入口。';
   } else if (cx.schoolSuggested) {
@@ -413,10 +472,20 @@ function renderSettings() {
       '只有部分学校的学习通是独立站点。把你学校学习通的地址填进来即可（形如 https://mooc1.s.xxx.edu.cn/work/stu-work）；不需要就留空，不影响通用入口。';
   }
 
+  const login = cx.login || {};
+  const renderedLogin = s.cxEnabled === false
+    ? {
+        generic: { ...(login.generic || {}), status: 'disabled' },
+        school: { ...(login.school || {}), status: 'disabled' }
+      }
+    : login;
+  renderLoginCard('generic', renderedLogin.generic);
+  renderLoginCard('school', renderedLogin.school);
+
   let cxText = '';
   if (s.cxEnabled === false) cxText = '已关闭';
   else if (cx.status === 'syncing') cxText = '正在同步…';
-  else if (cx.status === 'need-login') cxText = '⚠ 未登录，点「登录学习通」';
+  else if (cx.status === 'need-login') cxText = '⚠ 有登录入口需要重新认证';
   else if (cx.status === 'error') cxText = `⚠ 出错：${cx.message || '未知'}`;
   else if (!cx.lastAt) cxText = '还没有成功同步过';
   else {
@@ -431,7 +500,7 @@ function renderSettings() {
   }
   // 部分来源登录过期：作业提交了却还显示，通常就是这个原因
   if (cx.partialLogin > 0 && cx.status !== 'need-login') {
-    cxText = `⚠ 有 ${cx.partialLogin} 个来源登录已过期 · 点「登录学习通」重新扫码`;
+    cxText = `⚠ 有 ${cx.partialLogin} 个同步来源登录已过期`;
   }
 
   dom.cxInfo.textContent = cxText;
@@ -443,19 +512,6 @@ function renderSettings() {
     dom.settingsBtn.title = '学习通有来源登录过期，需要重新扫码';
   }
 
-  // ---- 备用接入 ----
-  const ing = state.ingest;
-  dom.ingestChk.checked = s.ingestEnabled !== false;
-  if (!ing || !ing.enabled) {
-    dom.ingestInfo.textContent = s.ingestEnabled === false ? '已关闭' : '未启动（端口可能被占用）';
-  } else if (!ing.lastAt) {
-    dom.ingestInfo.textContent = `本地 127.0.0.1:${ing.port} · 还没收到推送`;
-  } else {
-    const t = new Date(ing.lastAt);
-    const hh = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
-    dom.ingestInfo.textContent = `本地 127.0.0.1:${ing.port} · ${hh} 收到过推送`;
-  }
-
   // ---- 超过 2 小时没有任何一条同步成功 ----
   const lastOk = lastSuccessAt();
   if (s.cxEnabled !== false && lastOk && Date.now() - lastOk >= STALE_MS) {
@@ -465,11 +521,10 @@ function renderSettings() {
   }
 }
 
-/** 两条路（内置窗口 / 浏览器脚本）里最近一次成功同步的时间 */
+/** 内置学习通同步最近一次成功的时间 */
 function lastSuccessAt() {
   const a = state.chaoxing && state.chaoxing.lastAt ? Date.parse(state.chaoxing.lastAt) : 0;
-  const b = state.ingest && state.ingest.lastAt ? Date.parse(state.ingest.lastAt) : 0;
-  return Math.max(a || 0, b || 0);
+  return a || 0;
 }
 
 function fmtAge(ms) {
@@ -1050,8 +1105,6 @@ dom.hotkeyBtn.addEventListener('click', () => {
   else startRecording();
 });
 
-dom.ingestChk.addEventListener('change', () => saveSetting({ ingestEnabled: dom.ingestChk.checked }));
-
 // ---- 内置学习通 ----
 dom.cxChk.addEventListener('change', () => saveSetting({ cxEnabled: dom.cxChk.checked }));
 
@@ -1059,10 +1112,18 @@ dom.cxLoginBtn.addEventListener('click', async () => {
   closeSheet();
   showToast('已打开登录窗口，登录成功后会自动关闭');
   const r = await bridge.cxLogin('generic');
-  if (!r || !r.ok) showToast('登录窗口打不开，看日志');
+  if (r && r.busy) showToast('登录窗口已打开，请先完成当前登录');
+  else if (!r || !r.ok) showToast('登录窗口打不开，看日志');
 });
 
 dom.cxSchoolLoginBtn.addEventListener('click', async () => {
+  // 输入框仍在编辑状态时，先把当前值写入设置，避免依赖 blur/change 的时序。
+  const schoolUrl = dom.cxSchoolUrl.value.trim();
+  showToast(schoolUrl ? '正在打开学校入口…' : '正在检查学校入口地址…');
+  if (schoolUrl !== String(state.settings.cxSchoolUrl || '').trim()) {
+    await saveSetting({ cxSchoolUrl: schoolUrl });
+  }
+
   const r = await bridge.cxLogin('school');
   if (r && r.ok) {
     closeSheet();
@@ -1081,7 +1142,8 @@ dom.cxSchoolLoginBtn.addEventListener('click', async () => {
     dom.cxSchoolUrl.select();
     return;
   }
-  showToast('登录窗口打不开，看日志');
+  if (r && r.busy) showToast('登录窗口已打开，请先完成当前登录');
+  else showToast('登录窗口打不开，看日志');
 });
 
 dom.cxSyncBtn.addEventListener('click', async () => {
@@ -1123,19 +1185,6 @@ dom.cxExtraUrls.addEventListener('change', () => {
   showToast(urls.length ? `已保存 ${urls.length} 个额外页面` : '已清空额外页面');
 });
 
-dom.ingestCopyBtn.addEventListener('click', async () => {
-  const s = state.settings;
-  const ing = state.ingest;
-  const port = ing && ing.port ? ing.port : s.ingestPort;
-  const token = s.ingestToken || '';
-  if (!token) {
-    showToast('令牌还没生成，重启程序后再试');
-    return;
-  }
-  const text = `let FT_ENDPOINT = 'http://127.0.0.1:${port}';\nlet FT_TOKEN = '${token}';`;
-  const ok = await bridge.copyText(text);
-  showToast(ok ? '已复制：替换脚本顶部那两行配置' : '复制失败，请手抄地址和令牌');
-});
 dom.openDirBtn.addEventListener('click', () => bridge.openDataDir());
 dom.exportBtn.addEventListener('click', async () => {
   const ok = await bridge.exportJson();

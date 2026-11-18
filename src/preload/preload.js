@@ -41,7 +41,6 @@ contextBridge.exposeInMainWorld('api', {
   openDataDir: () => ipcRenderer.invoke('app:openDataDir'),
   exportJson: () => ipcRenderer.invoke('app:exportJson'),
   setAutoLaunch: (enabled) => ipcRenderer.invoke('app:setAutoLaunch', !!enabled),
-  copyText: (text) => ipcRenderer.invoke('app:copyText', text),
 
   // ---- 学习通（内置同步） ----
   cxSync: () => ipcRenderer.invoke('chaoxing:sync'),

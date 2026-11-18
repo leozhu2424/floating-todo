@@ -982,6 +982,132 @@ html[data-theme='dark'] .chip--course {
   margin-bottom: 0;
 }
 
+.login-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.login-card {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--seg-bg);
+  transition: border-color 0.14s, background 0.14s;
+}
+
+.login-card[data-state='logged-in'] {
+  border-color: rgba(52, 168, 83, 0.38);
+  background: rgba(52, 168, 83, 0.07);
+}
+
+.login-card[data-state='need-login'],
+.login-card[data-state='error'] {
+  border-color: rgba(234, 67, 53, 0.35);
+  background: rgba(234, 67, 53, 0.06);
+}
+
+.login-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.login-card__title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.login-card__sub {
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--text-3);
+}
+
+.status-pill {
+  flex: none;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: rgba(128, 128, 128, 0.16);
+  color: var(--text-2);
+  font-size: 10.5px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.status-pill[data-state='logged-in'] {
+  background: rgba(52, 168, 83, 0.16);
+  color: #20843f;
+}
+
+.status-pill[data-state='need-login'],
+.status-pill[data-state='error'] {
+  background: rgba(234, 67, 53, 0.14);
+  color: #b3261e;
+}
+
+.login-card[data-state='partial'] {
+  border-color: rgba(249, 171, 0, 0.42);
+  background: rgba(249, 171, 0, 0.08);
+}
+
+.status-pill[data-state='partial'] {
+  background: rgba(249, 171, 0, 0.18);
+  color: #946200;
+}
+
+.status-pill[data-state='checking'],
+.status-pill[data-state='waiting'] {
+  background: rgba(66, 133, 244, 0.14);
+  color: var(--blue);
+}
+
+html[data-theme='dark'] .status-pill[data-state='logged-in'] {
+  color: #81c995;
+}
+
+html[data-theme='dark'] .status-pill[data-state='need-login'],
+html[data-theme='dark'] .status-pill[data-state='error'] {
+  color: #f28b82;
+}
+
+html[data-theme='dark'] .status-pill[data-state='partial'] {
+  color: #fdd663;
+}
+
+.login-card__meta,
+.login-card__expiry {
+  margin-top: 6px;
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: var(--text-2);
+}
+
+.login-card__expiry {
+  margin-top: 2px;
+  color: var(--text-3);
+}
+
+.login-card .btn {
+  margin-top: 8px;
+}
+
+.sync__summary {
+  padding: 1px 1px 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
+.field__mini-label {
+  display: block;
+  margin: 2px 0 5px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+
 .text-input {
   width: 100%;
   box-sizing: border-box;

@@ -24,10 +24,6 @@ const DEFAULT_SETTINGS = Object.freeze({
   panelHeight: 420,
   // 首次启动展示新手引导
   onboarded: false,
-  // 本机接入（供浏览器脚本推送学习通作业）
-  ingestEnabled: true,
-  ingestPort: 45870,
-  ingestToken: '',
   // 内置学习通同步（隐藏窗口，不依赖浏览器）
   // 留空则用通用域名的作业总表，登录页支持手机扫码
   cxEnabled: true,
@@ -142,6 +138,7 @@ class Store {
     if (!parsed || typeof parsed !== 'object') return base;
 
     const settings = { ...base.settings, ...(parsed.settings || {}) };
+    for (const key of ['ingestEnabled', 'ingestPort', 'ingestToken']) delete settings[key];
     settings.ballSize = [36, 44, 56].includes(settings.ballSize) ? settings.ballSize : 44;
     if (!BALL_THEMES.includes(settings.ballTheme)) settings.ballTheme = 'aurora';
 

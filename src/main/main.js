@@ -11,7 +11,6 @@ const {
   shell,
   dialog,
   globalShortcut,
-  clipboard,
   session
 } = require('electron');
 const path = require('path');
@@ -47,9 +46,7 @@ if (HOME) {
 
 const { Store, APP_FOLDER } = require('./store');
 const { Reminder } = require('./reminder');
-const { IngestServer } = require('./ingest');
 const { SOURCE: CX_COLLECT_SOURCE } = require('../shared/chaoxing-collector');
-const { randomBytes } = require('crypto');
 
 const DATA_DIR = HOME ? path.join(HOME, 'data') : path.join(app.getPath('appData'), APP_FOLDER);
 
@@ -66,10 +63,9 @@ let ballWin = null;
 let panelWin = null;
 let tray = null;
 let reminder = null;
-let ingest = null;
 
 // ---------------------------------------------------------------------------
-// 内置学习通同步：用一个隐藏窗口保持登录态，不依赖浏览器和油猴脚本
+// 内置学习通同步：用一个隐藏窗口保持登录态
 // ---------------------------------------------------------------------------
 const CX_PARTITION = 'persist:chaoxing';
 // 主来源走通用域名：它的登录页支持手机扫码（学校实例 mooc1.s.ecust.edu.cn
@@ -88,8 +84,20 @@ let cxFetchWin = null;
 let cxLoginWin = null;
 let cxTimer = null;
 let cxLoginPoll = null;
+let cxLoginPollBusy = false;
+let cxLoginTarget = null;
 let cxBusy = false;
-let cxLoginLoadedOnce = false;
+
+function makeCxLoginState(configured = true) {
+  return {
+    configured,
+    status: configured ? 'unknown' : 'not-configured',
+    loggedIn: false,
+    expiresAt: null,
+    checkedAt: null,
+    message: ''
+  };
+}
 
 const cxState = {
   status: 'idle', // idle | syncing | ok | need-login | error | disabled
@@ -100,7 +108,11 @@ const cxState = {
   lastResult: null,
   message: '',
   schoolUrl: '', // 学校实例作业总表（用户填的或自动识别出来的，空=不启用）
-  schoolSuggested: '' // 纯自动识别的结果，给界面做提示
+  schoolSuggested: '', // 纯自动识别的结果，给界面做提示
+  login: {
+    generic: makeCxLoginState(true),
+    school: makeCxLoginState(false)
+  }
 };
 
 let dragTimer = null;
@@ -910,39 +922,11 @@ function snapshot() {
     todos: visibleTodos(),
     settings: store.state.settings,
     autoLaunch,
-    ingest: ingest ? ingest.info() : null,
     chaoxing: { ...cxState },
     recovered: store.recoveredFromBackup,
     corruptFile: store.corruptFile,
     dataDir: DATA_DIR
   };
-}
-
-/** 按当前设置重新拉起本机接入服务（端口被占用会自动往后试） */
-async function restartIngest() {
-  if (!ingest) return;
-  ingest.stop();
-
-  const s = store.state.settings;
-  if (!s.ingestEnabled) {
-    logToFile('[ingest] disabled by settings');
-    broadcastState();
-    return;
-  }
-  if (!s.ingestToken) {
-    logToFile('[ingest] no token, skip start');
-    broadcastState();
-    return;
-  }
-
-  const res = await ingest.start({ port: s.ingestPort, token: s.ingestToken });
-  if (!res.ok) {
-    logToFile('[ingest] start failed: ' + res.error);
-  } else if (res.port !== s.ingestPort) {
-    logToFile(`[ingest] port ${s.ingestPort} busy, using ${res.port}`);
-    store.saveSettings({ ingestPort: res.port });
-  }
-  broadcastState();
 }
 
 // ---------------------------------------------------------------------------
@@ -1002,8 +986,10 @@ async function persistCxCookies(days = 7, tag = '') {
     if (converted || failed) {
       logToFile(`[cookies] ${tag} 会话级 cookie 转持久: 成功 ${converted}，失败 ${failed}，有效期 ${days} 天`);
     }
+    return exp * 1000;
   } catch (err) {
     logToFile('[cookies] persist 失败 ' + ((err && err.message) || err));
+    return null;
   }
 }
 
@@ -1149,7 +1135,12 @@ function cxGetWindow(kind) {
   if (isLogin) {
     cxLoginWin = win;
     win.on('closed', () => {
+      if (cxLoginTarget && cxState.login[cxLoginTarget]?.status === 'waiting') {
+        cxSetLoginState(cxLoginTarget, { status: 'need-login', loggedIn: false, message: '登录窗口已关闭' });
+        broadcastState();
+      }
       cxLoginWin = null;
+      cxLoginTarget = null;
       stopCxLoginPoll();
     });
   } else {
@@ -1163,10 +1154,104 @@ function cxGetWindow(kind) {
   return win;
 }
 
+function cxTargetForUrl(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    const schoolUrl = cxState.schoolUrl || cxNormalizeSchoolUrl(store.state.settings.cxSchoolUrl);
+    if (schoolUrl) {
+      const schoolHost = new URL(schoolUrl).hostname.toLowerCase();
+      if (host === schoolHost || host.endsWith(`.${schoolHost}`) || schoolHost.endsWith(`.${host}`)) return 'school';
+    }
+    return 'generic';
+  } catch (_) {
+    return 'generic';
+  }
+}
+
+function cxSetLoginState(target, patch = {}) {
+  const current = cxState.login[target] || makeCxLoginState(target !== 'school');
+  const next = { ...current, ...patch, checkedAt: new Date().toISOString() };
+  if (['checking', 'waiting', 'need-login', 'error', 'not-configured'].includes(next.status)) {
+    next.expiresAt = null;
+  }
+  cxState.login[target] = next;
+}
+
+function cxSchoolConfigured() {
+  return !!(cxState.schoolUrl || cxNormalizeSchoolUrl(store.state.settings.cxSchoolUrl));
+}
+
+function cxCookieMatchesHost(cookie, host) {
+  const domain = String(cookie.domain || '').replace(/^\./, '').toLowerCase();
+  const normalizedHost = String(host || '').toLowerCase();
+  return !!domain && !!normalizedHost && (normalizedHost === domain || normalizedHost.endsWith(`.${domain}`));
+}
+
+async function cxReadLoginExpiry(target) {
+  const login = cxState.login[target];
+  if (!login || !login.configured) return null;
+
+  const sourceUrl = target === 'school' ? cxState.schoolUrl : CX_WORK_URL;
+  let host = '';
+  try {
+    host = new URL(sourceUrl).hostname;
+  } catch (_) {
+    return null;
+  }
+
+  try {
+    const cookies = await session.fromPartition(CX_PARTITION).cookies.get({});
+    const authCookie = /^(?:_uid|uid|uf|vc3|p_auth_token|retainlogin|fid|uname|enc|jsessionid|castgc|session)/i;
+    const matching = cookies.filter((cookie) => cxCookieMatchesHost(cookie, host));
+    const authMatching = matching.filter((cookie) => authCookie.test(String(cookie.name || '')));
+    const candidates = authMatching.length ? authMatching : matching;
+    const expirations = candidates
+      .map((cookie) => Number(cookie.expirationDate || 0) * 1000)
+      .filter((time) => Number.isFinite(time) && time > Date.now());
+    return expirations.length ? Math.min(...expirations) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function cxUpdateLoginExpiry(target) {
+  const expiresAt = await cxReadLoginExpiry(target);
+  if (expiresAt) {
+    cxState.login[target].expiresAt = new Date(expiresAt).toISOString();
+  }
+  return expiresAt;
+}
+
+function cxApplySourceLoginState(results = {}) {
+  for (const target of ['generic', 'school']) {
+    const configured = target === 'generic' ? true : cxSchoolConfigured();
+    const result = results[target] || {};
+
+    if (!configured) {
+      cxState.login[target] = makeCxLoginState(false);
+      continue;
+    }
+
+    if (result.ok) {
+      cxSetLoginState(target, {
+        configured: true,
+        status: result.needLogin ? 'partial' : 'logged-in',
+        loggedIn: true,
+        message: result.needLogin ? '部分页面需要重新登录' : ''
+      });
+    } else if (result.needLogin) {
+      cxSetLoginState(target, { configured: true, status: 'need-login', loggedIn: false, message: '需要重新登录' });
+    } else if (result.seen && result.error) {
+      cxSetLoginState(target, { configured: true, status: 'error', loggedIn: false, message: result.error });
+    }
+  }
+}
+
 /** 要抓取的页面列表：作业总表 + 用户自己加的额外页面（可带 #course=课程名） */
 function cxSources() {
   const extra = Array.isArray(store.state.settings.cxExtraUrls) ? store.state.settings.cxExtraUrls : [];
-  const raw = [CX_WORK_URL].concat(extra);
+  const school = cxNormalizeSchoolUrl(store.state.settings.cxSchoolUrl) || cxState.schoolUrl;
+  const raw = [CX_WORK_URL].concat(school ? [school] : [], extra);
   const list = [];
   const seen = new Set();
 
@@ -1452,12 +1537,18 @@ async function cxFetchAll() {
   const merged = new Map();
   const perSource = [];
   const loginSources = [];
+  const loginByTarget = {
+    generic: { seen: false, ok: false, needLogin: false, error: '' },
+    school: { seen: false, ok: false, needLogin: false, error: '' }
+  };
   let okHits = 0;
 
   logToFile(`[chaoxing] sources(${urls.length}): ${urls.map((s) => s.url).join(' | ')}`);
 
   for (const source of urls) {
     const { url, course } = source;
+    const target = cxTargetForUrl(url);
+    loginByTarget[target].seen = true;
     try {
       const res = await collectFromPage(win, url, course);
 
@@ -1465,11 +1556,13 @@ async function cxFetchAll() {
         // 单个来源要登录不代表全军覆没（不同域名的会话是分开的），
         // 但必须记下来告诉用户，否则会像「作业提交了还显示」这样静默出错。
         loginSources.push(url);
+        loginByTarget[target].needLogin = true;
         logToFile(`[chaoxing] source needs login: ${url} -> ${res.url}`);
         continue;
       }
 
       okHits += 1;
+      loginByTarget[target].ok = true;
       perSource.push({ url, count: res.items.length });
       for (const it of res.items) {
         if (it && it.sourceKey && !merged.has(it.sourceKey)) merged.set(it.sourceKey, it);
@@ -1477,6 +1570,7 @@ async function cxFetchAll() {
 
       logToFile(`[chaoxing] source ${url} -> ${res.items.length} 条`);
     } catch (err) {
+      loginByTarget[target].error = String((err && err.message) || err).slice(0, 160);
       logToFile(`[chaoxing] source failed ${url}: ${(err && err.message) || err}`);
     }
   }
@@ -1485,7 +1579,7 @@ async function cxFetchAll() {
   await cxVerifyPendingQuizzes(win, Array.from(merged.values()));
 
   const needLogin = urls.length > 0 && okHits === 0 && loginSources.length > 0;
-  return { needLogin, items: Array.from(merged.values()), perSource, loginSources };
+  return { needLogin, items: Array.from(merged.values()), perSource, loginSources, loginByTarget };
 }
 
 /** 拉一次并写入待办 */
@@ -1499,10 +1593,16 @@ async function cxSync(reason) {
   cxBusy = true;
   cxState.status = 'syncing';
   cxState.lastAttemptAt = new Date().toISOString();
+  for (const target of ['generic', 'school']) {
+    if (target === 'generic' || cxSchoolConfigured()) {
+      cxSetLoginState(target, { status: 'checking', message: '正在检查同步来源' });
+    }
+  }
   broadcastState();
 
   try {
     const res = await cxFetchAll();
+    cxApplySourceLoginState(res.loginByTarget);
 
     if (res.needLogin) {
       cxState.status = 'need-login';
@@ -1532,7 +1632,13 @@ async function cxSync(reason) {
       `[chaoxing] sync ok (${reason}) items=${res.items.length} created=${result.created} updated=${result.updated} completed=${result.completed} skipped=${result.skipped}`
     );
     // 每次同步成功都顺手把会话级 cookie 续成持久的，避免下次重启掉登录
-    await persistCxCookies(7, 'sync');
+    const persistedUntil = await persistCxCookies(7, 'sync');
+    for (const target of ['generic', 'school']) {
+      if (cxState.login[target].loggedIn) {
+        const expiresAt = await cxUpdateLoginExpiry(target);
+        if (!expiresAt && persistedUntil) cxState.login[target].expiresAt = new Date(persistedUntil).toISOString();
+      }
+    }
     broadcastState();
     return { ok: true, ...cxState.lastResult };
   } catch (err) {
@@ -1552,6 +1658,7 @@ async function cxSync(reason) {
 function stopCxLoginPoll() {
   if (cxLoginPoll) clearInterval(cxLoginPoll);
   cxLoginPoll = null;
+  cxLoginPollBusy = false;
 }
 
 /** 判断「某个作业页」当前是否已登录（会实际打开它，看是否被踢到登录页） */
@@ -1603,6 +1710,8 @@ async function cxSuggestSchoolUrl() {
   const hosts = new Set();
 
   for (const src of cxSources()) {
+    // 设置刚被清空时，cxState 里可能还保留上一轮地址，不能用它把自己重新猜回来。
+    if (cxState.schoolUrl && src.url === cxState.schoolUrl) continue;
     try {
       const h = new URL(src.url).hostname.toLowerCase();
       if (h) hosts.add(h);
@@ -1649,11 +1758,23 @@ async function cxResolveSchoolUrl() {
 /** 把「学校入口地址」算好放进 cxState，界面直接读，不用每次问 */
 async function refreshSchoolUrl() {
   try {
+    const previousUrl = cxState.schoolUrl;
     const suggested = await cxSuggestSchoolUrl();
     cxState.schoolSuggested = suggested;
     cxState.schoolUrl = cxNormalizeSchoolUrl(store.state.settings.cxSchoolUrl) || suggested;
+    if (cxState.schoolUrl) {
+      if (cxState.schoolUrl !== previousUrl || !cxState.login.school.configured) {
+        cxState.login.school = makeCxLoginState(true);
+      } else {
+        cxState.login.school.configured = true;
+      }
+    } else {
+      cxState.login.school = makeCxLoginState(false);
+    }
   } catch (_) {
     cxState.schoolUrl = '';
+    cxState.schoolSuggested = '';
+    cxState.login.school = makeCxLoginState(false);
   }
   broadcastState();
 }
@@ -1670,6 +1791,8 @@ async function refreshSchoolUrl() {
  */
 async function cxOpenLogin(target = 'generic') {
   const isSchool = target === 'school';
+  cxSetLoginState(target, { configured: !isSchool || cxSchoolConfigured(), status: 'checking', loggedIn: false, message: '' });
+  broadcastState();
 
   let url;
   let checkUrl;
@@ -1678,25 +1801,41 @@ async function cxOpenLogin(target = 'generic') {
     if (!school) {
       // 没配学校地址：不让它去撞一个写死的错域名
       logToFile('[chaoxing] school login skipped: no school url');
+      cxState.login.school = makeCxLoginState(false);
+      broadcastState();
       return { ok: false, needUrl: true, suggested: await cxSuggestSchoolUrl() };
     }
     url = school;
     checkUrl = school;
+    if (cxState.schoolUrl && cxState.schoolUrl !== school) cxState.login.school = makeCxLoginState(true);
+    cxState.schoolUrl = school;
+    cxState.login.school.configured = true;
   } else {
     url = store.state.settings.cxLoginUrl || 'https://passport2.chaoxing.com/login';
     checkUrl = CX_WORK_URL;
+  }
+
+  if (cxLoginWin && !cxLoginWin.isDestroyed()) {
+    cxLoginWin.show();
+    cxLoginWin.focus();
+    return { ok: false, busy: true };
   }
 
   // 两套会话各自判断「是不是已经登进去了」，避免刚开窗就被误判成功
   const already = await cxIsUrlLoggedIn(checkUrl);
   if (already) {
     logToFile(`[chaoxing] login skipped, already signed in: ${target}`);
-    await persistCxCookies(7, 'pre-login');
+    const persistedUntil = await persistCxCookies(7, 'pre-login');
+    cxSetLoginState(target, { configured: true, status: 'logged-in', loggedIn: true, message: '' });
+    const expiresAt = await cxUpdateLoginExpiry(target);
+    if (!expiresAt && persistedUntil) cxState.login[target].expiresAt = new Date(persistedUntil).toISOString();
+    broadcastState();
     await cxSync('pre-login');
     return { ok: true, already: true };
   }
 
   const win = cxGetWindow('login');
+  cxLoginTarget = target;
 
   try {
     await loadPage(win, url, 15000);
@@ -1706,15 +1845,19 @@ async function cxOpenLogin(target = 'generic') {
 
   win.show();
   win.focus();
+  cxSetLoginState(target, { configured: true, status: 'waiting', loggedIn: false, message: '等待完成登录' });
+  broadcastState();
   logToFile(`[chaoxing] login window opened (${target}): ${url}`);
 
   stopCxLoginPoll();
   let pollTick = 0;
   cxLoginPoll = setInterval(async () => {
+    if (cxLoginPollBusy) return;
     if (!cxLoginWin || cxLoginWin.isDestroyed()) {
       stopCxLoginPoll();
       return;
     }
+    cxLoginPollBusy = true;
     // 每 15 秒记一次当前地址，下次“点了没反应”时能直接看出卡在哪一步
     pollTick += 1;
     if (pollTick % 3 === 1) {
@@ -1730,10 +1873,14 @@ async function cxOpenLogin(target = 'generic') {
       logToFile(`[chaoxing] login detected (${target}), closing login window`);
       if (cxLoginWin && !cxLoginWin.isDestroyed()) cxLoginWin.close();
       // 关键：把会话级 cookie 写成持久的，否则程序一重启就掉登录
-      await persistCxCookies(7, 'after-login');
+      const persistedUntil = await persistCxCookies(7, 'after-login');
+      cxSetLoginState(target, { configured: true, status: 'logged-in', loggedIn: true, message: '' });
+      const expiresAt = await cxUpdateLoginExpiry(target);
+      if (!expiresAt && persistedUntil) cxState.login[target].expiresAt = new Date(persistedUntil).toISOString();
       await dumpCxCookies('after-login');
       await cxSync('after-login');
     }
+    cxLoginPollBusy = false;
   }, 5000);
 
   return { ok: true };
@@ -1749,7 +1896,8 @@ async function cxLogout() {
   cxState.status = 'need-login';
   cxState.lastAt = null;
   cxState.lastResult = null;
-  cxLoginLoadedOnce = false;
+  cxState.login.generic = makeCxLoginState(true);
+  cxState.login.school = makeCxLoginState(cxSchoolConfigured());
   broadcastState();
   return { ok: true };
 }
@@ -1780,6 +1928,7 @@ function cxStopAll() {
   }
   cxFetchWin = null;
   cxLoginWin = null;
+  cxLoginTarget = null;
 }
 
 function pushStateTo(win) {
@@ -1951,13 +2100,6 @@ function registerIpc() {
     }
     if (before.ballSize !== settings.ballSize) pushStateTo(ballWin);
     if (before.hotkey !== settings.hotkey) registerGlobalHotkey();
-    if (
-      before.ingestEnabled !== settings.ingestEnabled ||
-      before.ingestPort !== settings.ingestPort ||
-      before.ingestToken !== settings.ingestToken
-    ) {
-      restartIngest();
-    }
     if (before.cxEnabled !== settings.cxEnabled || before.cxIntervalMin !== settings.cxIntervalMin) {
       cxStartSchedule();
     }
@@ -1973,16 +2115,6 @@ function registerIpc() {
   });
 
   ipcMain.handle('app:openDataDir', () => shell.openPath(DATA_DIR));
-
-  ipcMain.handle('app:copyText', (_e, text) => {
-    try {
-      clipboard.writeText(String(text == null ? '' : text));
-      return true;
-    } catch (err) {
-      logToFile('[clipboard] error ' + (err && err.message));
-      return false;
-    }
-  });
 
   // ---- 学习通 ----
   ipcMain.handle('chaoxing:sync', () => cxSync('manual'));
@@ -2091,17 +2223,6 @@ if (!gotLock) {
       onOpen: () => showPanel()
     });
     reminder.start();
-
-    // 本机接入：首次运行生成令牌
-    if (!store.state.settings.ingestToken) {
-      store.saveSettings({ ingestToken: randomBytes(16).toString('hex') });
-    }
-    ingest = new IngestServer({
-      store,
-      log: (...args) => logToFile(...args),
-      onIngest: () => broadcastState()
-    });
-    restartIngest();
 
     // 学习通：启动后先静默试抓一次，需要登录再弹登录窗口；之后按间隔自动同步
     cxStartSchedule();
@@ -2225,7 +2346,6 @@ if (!gotLock) {
     stopDrag();
     stopHoverPoll();
       if (reminder) reminder.stop();
-    if (ingest) ingest.stop();
     cxStopAll();
     try {
       globalShortcut.unregisterAll();

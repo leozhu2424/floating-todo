@@ -164,14 +164,41 @@
                 <span class="sync__text">启动时自动同步作业</span>
                 <input type="checkbox" id="cxChk" class="switch" />
               </div>
-              <div class="field__hint" id="cxInfo">—</div>
+              <div class="login-cards" id="cxLoginOverview">
+                <section class="login-card" data-login-card="generic">
+                  <div class="login-card__head">
+                    <div>
+                      <div class="login-card__title">通用学习通</div>
+                      <div class="login-card__sub">学习通账号 / 扫码入口</div>
+                    </div>
+                    <span class="status-pill" id="cxGenericStatus">待检查</span>
+                  </div>
+                  <div class="login-card__meta" id="cxGenericMeta">登录状态还没有检查</div>
+                  <div class="login-card__expiry" id="cxGenericExpiry">会话有效期：未知</div>
+                  <button class="btn btn--primary" id="cxLoginBtn">登录通用入口</button>
+                </section>
+
+                <section class="login-card" data-login-card="school">
+                  <div class="login-card__head">
+                    <div>
+                      <div class="login-card__title">学校入口</div>
+                      <div class="login-card__sub">校园统一认证 / 学校自建站</div>
+                    </div>
+                    <span class="status-pill" id="cxSchoolStatus">未配置</span>
+                  </div>
+                  <div class="login-card__meta" id="cxSchoolMeta">填入学校学习通地址后检查</div>
+                  <div class="login-card__expiry" id="cxSchoolExpiry">会话有效期：未知</div>
+                  <button class="btn btn--ghost" id="cxSchoolLoginBtn">登录学校入口</button>
+                </section>
+              </div>
+
+              <div class="sync__summary" id="cxInfo">还没有成功同步过</div>
               <div class="sheet__row">
-                <button class="btn btn--primary" id="cxLoginBtn">登录学习通</button>
                 <button class="btn btn--ghost" id="cxSyncBtn">立即同步</button>
+                <button class="btn btn--ghost" id="cxLogoutBtn">退出所有学习通登录</button>
               </div>
-              <div class="sheet__row">
-                <button class="btn btn--ghost" id="cxSchoolLoginBtn">登录学校入口</button>
-              </div>
+
+              <label class="field__mini-label" for="cxSchoolUrl">学校学习通地址</label>
               <input
                 class="text-input"
                 id="cxSchoolUrl"
@@ -180,12 +207,8 @@
                 placeholder="学校学习通地址（留空则自动识别）"
               />
               <div class="field__hint" id="cxSchoolHint">—</div>
-              <div class="field__hint">
-                学习通有<b>两套独立登录</b>：通用域名和学习通账号，学校实例和校园统一认证。
-                两个都要登，各自记住状态。<br />
-                通用入口建议选<b>「账号密码登录」</b>并勾<b>「7天内自动登录」</b>。
-                密码不会被保存，程序只保留登录状态并自动续期。
-              </div>
+              <div class="field__hint">学校地址只用于识别学校站点。程序不会保存密码，只保留登录会话。</div>
+              <label class="field__mini-label" for="cxLoginUrl">通用入口起始地址（可选）</label>
               <input
                 class="text-input"
                 id="cxLoginUrl"
@@ -193,9 +216,7 @@
                 spellcheck="false"
                 placeholder="登录起始地址（留空则默认打开作业页）"
               />
-              <div class="field__hint">
-                额外要抓的页面（考试 / 分组任务 / 随堂练习），一行一个网址。留空则只抓作业。
-              </div>
+              <label class="field__mini-label" for="cxExtraUrls">额外同步页面（可选）</label>
               <textarea
                 class="text-input"
                 id="cxExtraUrls"
@@ -203,21 +224,7 @@
                 spellcheck="false"
                 placeholder="https://...（一行一个）"
               ></textarea>
-            </div>
-          </div>
-
-          <div class="field field--muted">
-            <div class="field__label">备用：浏览器脚本接入</div>
-            <div class="sync">
-              <div class="sync__row">
-                <span class="sync__text">接收油猴/书签脚本推送</span>
-                <input type="checkbox" id="ingestChk" class="switch" />
-              </div>
-              <div class="field__hint" id="ingestInfo">—</div>
-              <div class="sheet__row">
-                <button class="btn btn--ghost" id="ingestCopyBtn">复制接入配置</button>
-                <button class="btn btn--ghost" id="cxLogoutBtn">退出学习通登录</button>
-              </div>
+              <div class="field__hint">用于补充考试、分组任务或随堂练习页面，一行一个网址。</div>
             </div>
           </div>
 
