@@ -1,7 +1,7 @@
 {
   "name": "floating-todo",
   "productName": "FloatingTodo",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "桌面悬浮待办 - 一颗五彩球，点开就是待办清单",
   "main": "src/main/main.js",
   "private": true,
